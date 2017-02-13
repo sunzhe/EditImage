@@ -537,10 +537,18 @@ typedef NS_ENUM(NSInteger, TKMidLineType) {
 - (void)autoAdjustImageView:(BOOL)animation{
     _currCropAspectRatio = _cropAreaView.frame.size.width/_cropAreaView.frame.size.height;
     //return;
-    CGRect imageRect = _imageView.zoomImageView.frame;
+    
+    CGRect imageRect = [_imageView.zoomScrollView convertRect:_imageView.zoomImageView.frame toView:self];
     CGRect cropRect = _cropAreaView.frame;
     
-    if (CGRectContainsRect(_imageView.zoomScrollView.frame, cropRect)) {
+    //边界限制.
+    CGFloat tmpOffset = .01;
+    CGRect tmpRect = imageRect;
+    tmpRect.origin.x -= tmpOffset;
+    tmpRect.origin.y -= tmpOffset;
+    tmpRect.size.width += tmpOffset;
+    tmpRect.size.height += tmpOffset;
+    if (CGRectContainsRect(tmpRect, cropRect)) {
         //没有超出边界 不用处理
         return;
     }
@@ -551,20 +559,39 @@ typedef NS_ENUM(NSInteger, TKMidLineType) {
     if (maxScale > 1) {
         //maxScale = _imageView.zoomScrollView.zoomScale*maxScale;
     }
+    //基于image 相对frame 和 cropRect 偏移 改变frame
+    CGRect toRect = _imageView.zoomScrollView.frame;
+    CGFloat offsetX = cropRect.origin.x - imageRect.origin.x;
+    if (offsetX < 0) {
+        toRect.origin.x += offsetX;
+    }else {
+        CGFloat offsetW = CGRectGetMaxX(cropRect) - CGRectGetMaxX(imageRect);
+        if (offsetW > 0) {
+            toRect.origin.x += offsetW;
+        }
+    }
+    CGFloat offsetY = cropRect.origin.y - imageRect.origin.y;
+    if (offsetY < 0) {
+        toRect.origin.y += offsetY;
+    }else {
+        CGFloat offsetH = CGRectGetMaxY(cropRect)-CGRectGetMaxY(imageRect);
+        if (offsetH > 0) {
+            toRect.origin.y += offsetH;
+        }
+    }
     
     if (animation) {
         [UIView animateWithDuration:.3 animations:^{
-            _imageView.zoomScrollView.frame = cropRect;
-            //[_imageView updateCropRect:imageRect reset:NO];
-            //_imageView.frame = imageRect;
+            _imageView.zoomScrollView.frame = toRect;
+            if (maxScale>1) {
+                [_imageView.zoomScrollView setZoomScale:_imageView.zoomScrollView.zoomScale*maxScale animated:NO];
+            }
         }];
     }else {
-        _imageView.zoomScrollView.frame = cropRect;
+        _imageView.zoomScrollView.frame = toRect;
         if (maxScale>1) {
             [_imageView.zoomScrollView setZoomScale:_imageView.zoomScrollView.zoomScale*maxScale animated:NO];
         }
-        //[_imageView updateCropRect:imageRect reset:NO];
-        //_imageView.frame = imageRect;
     }
 }
 #pragma mark - PanGesture Bind
